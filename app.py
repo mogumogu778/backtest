@@ -64,6 +64,15 @@ def _build_price_chart(signals, strategy_name, buy_sigs, sell_sigs, color):
     if strategy_name == "移動平均クロス":
         fig.add_trace(go.Scatter(x=signals.index, y=signals["short_ma"], name="短期MA", line=dict(color="orange", width=1.2)), row=1, col=1)
         fig.add_trace(go.Scatter(x=signals.index, y=signals["long_ma"],  name="長期MA", line=dict(color="blue",   width=1.2)), row=1, col=1)
+    elif strategy_name == "長期トレンド順張り（低リスク）":
+        fig.add_trace(go.Scatter(x=signals.index, y=signals["sma_long"], name="長期SMA", line=dict(color="blue",   width=1.5)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=signals.index, y=signals["sma_mid"],  name="中期SMA", line=dict(color="orange", width=1.2)), row=1, col=1)
+    elif strategy_name == "EMAトレンド×ATRフィルター（中リスク）":
+        fig.add_trace(go.Scatter(x=signals.index, y=signals["ema_short"], name="短期EMA", line=dict(color="orange", width=1.2)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=signals.index, y=signals["ema_long"],  name="長期EMA", line=dict(color="blue",   width=1.2)), row=1, col=1)
+    elif strategy_name == "急騰ブレイクアウト（ハイリスク）":
+        fig.add_trace(go.Scatter(x=signals.index, y=signals["channel_high"], name="チャネル高値", line=dict(color="green", width=1, dash="dot")), row=1, col=1)
+        fig.add_trace(go.Scatter(x=signals.index, y=signals["channel_low"],  name="チャネル安値", line=dict(color="red",   width=1, dash="dot")), row=1, col=1)
     elif strategy_name == "ボリンジャーバンド":
         fig.add_trace(go.Scatter(x=signals.index, y=signals["bb_upper"], name="上限", line=dict(color="gray", width=1, dash="dot")), row=1, col=1)
         fig.add_trace(go.Scatter(x=signals.index, y=signals["bb_mid"],   name="中央", line=dict(color="gray", width=1)),            row=1, col=1)
