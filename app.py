@@ -6,7 +6,9 @@ from datetime import date, timedelta
 
 from data.fetcher import fetch_ohlcv, get_ticker_info
 from backtest import run_backtest, calc_metrics
-from backtest.strategies import MACrossStrategy, RSIStrategy, BollingerStrategy, MACDStrategy
+from backtest.strategies import discover_strategies
+
+AVAILABLE_STRATEGIES = discover_strategies()
 
 st.set_page_config(page_title="日本株バックテスト", page_icon="📈", layout="wide")
 
@@ -162,38 +164,44 @@ start_date = col1.date_input("開始日", value=default_start)
 end_date   = col2.date_input("終了日", value=default_end)
 
 st.sidebar.subheader("戦略選択（複数可）")
+strategy_names = list(AVAILABLE_STRATEGIES.keys())
 selected_names = st.sidebar.multiselect(
     "使用する戦略",
-    ["移動平均クロス", "RSI", "ボリンジャーバンド", "MACD"],
-    default=["移動平均クロス"],
-    help="複数選択するとパフォーマンスを並べて比較できます",
+    strategy_names,
+    default=[strategy_names[0]] if strategy_names else [],
+    help="複数選択するとパフォーマンスを並べて比較できます。strategies/ にファイルを追加すると自動で反映されます。",
 )
 
 if not selected_names:
     st.sidebar.warning("戦略を1つ以上選択してください。")
 
-# 戦略ごとのパラメータ設定
+# 戦略ごとのパラメータ設定（PARAM_SCHEMA から動的生成）
 strategies: dict = {}
 for sname in selected_names:
+    cls = AVAILABLE_STRATEGIES[sname]
     with st.sidebar.expander(f"{sname} のパラメータ", expanded=(len(selected_names) == 1)):
-        if sname == "移動平均クロス":
-            sw = st.slider("短期MA (日)", 5,  50,  25,  key=f"{sname}_short")
-            lw = st.slider("長期MA (日)", 20, 200, 75,  key=f"{sname}_long")
-            strategies[sname] = MACrossStrategy(short_window=sw, long_window=lw)
-        elif sname == "RSI":
-            p  = st.slider("RSI期間 (日)",   5,  30, 14, key=f"{sname}_period")
-            os = st.slider("売られすぎ閾値", 10,  45, 30, key=f"{sname}_oversold")
-            ob = st.slider("買われすぎ閾値", 55,  90, 70, key=f"{sname}_overbought")
-            strategies[sname] = RSIStrategy(period=p, oversold=os, overbought=ob)
-        elif sname == "ボリンジャーバンド":
-            w   = st.slider("期間 (日)",        5,   50, 20,  key=f"{sname}_window")
-            std = st.slider("標準偏差の倍数", 1.0,  3.0, 2.0, step=0.1, key=f"{sname}_std")
-            strategies[sname] = BollingerStrategy(window=w, num_std=std)
-        elif sname == "MACD":
-            fast = st.slider("短期EMA",    5,  20, 12, key=f"{sname}_fast")
-            slow = st.slider("長期EMA",   15,  50, 26, key=f"{sname}_slow")
-            sig  = st.slider("シグナル期間", 5, 20,  9, key=f"{sname}_signal")
-            strategies[sname] = MACDStrategy(fast=fast, slow=slow, signal=sig)
+        params = {}
+        for p in cls.PARAM_SCHEMA:
+            key = p["key"]
+            if p["type"] == "int":
+                params[key] = st.slider(
+                    p["label"],
+                    min_value=int(p["min"]),
+                    max_value=int(p["max"]),
+                    value=int(p["default"]),
+                    step=int(p.get("step", 1)),
+                    key=f"{sname}_{key}",
+                )
+            else:  # float
+                params[key] = st.slider(
+                    p["label"],
+                    min_value=float(p["min"]),
+                    max_value=float(p["max"]),
+                    value=float(p["default"]),
+                    step=float(p.get("step", 0.1)),
+                    key=f"{sname}_{key}",
+                )
+        strategies[sname] = cls(**params)
 
 st.sidebar.subheader("資金・コスト設定")
 initial_capital = st.sidebar.number_input(
